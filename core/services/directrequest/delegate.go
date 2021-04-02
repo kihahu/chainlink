@@ -88,15 +88,12 @@ type listener struct {
 
 // Start complies with job.Service
 func (l *listener) Start() error {
-	connected, unsubscribe := l.logBroadcaster.Register(l, log.ListenerOpts{
+	unsubscribe := l.logBroadcaster.Register(l, log.ListenerOpts{
 		Contract:         l.oracle,
 		Logs:             []generated.AbigenLog{oracle_wrapper.OracleOracleRequest{},
 			oracle_wrapper.OracleCancelOracleRequest{},},
 		NumConfirmations: 1,
 	})
-	if !connected {
-		return errors.New("Failed to register listener with logBroadcaster")
-	}
 	l.unsubscribeLogs = unsubscribe
 	return nil
 }
