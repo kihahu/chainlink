@@ -2,7 +2,6 @@ package chainlink
 
 import (
 	"context"
-	"encoding/json"
 	stderr "errors"
 	"fmt"
 	"os"
@@ -44,7 +43,7 @@ import (
 	"gopkg.in/guregu/null.v4"
 )
 
-var serviceLoggers2 = map[string]interface{}{}
+var serviceLoggers = map[string]interface{}{}
 
 //go:generate mockery --name ExternalInitiatorManager --output ../../internal/mocks/ --case=underscore
 type (
@@ -178,12 +177,13 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 		logger.Info("DatabaseBackup: periodic database backups are disabled")
 	}
 
+	// Init service loggers
 	globalLogger := config.CreateProductionLogger()
 	serviceLogLevels, err := getServiceLogLevels(config)
 	if err != nil {
 		logger.Fatalf("error getting log levels: %v", err)
 	}
-	headTrackerLogger, err := globalLogger.InitServiceLevelLogger(config.RootDir(), logger.HeadTracker, config.JSONConsole(), config.LogToDisk(), serviceLogLevels[logger.HeadTracker], serviceLoggers2)
+	headTrackerLogger, err := globalLogger.InitServiceLevelLogger(config.RootDir(), logger.HeadTracker, config.JSONConsole(), config.LogToDisk(), serviceLogLevels[logger.HeadTracker])
 	if err != nil {
 		logger.Fatal("error starting logger for head tracker")
 	}
@@ -312,7 +312,7 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 		headTrackables = append(headTrackables, headTrackable)
 	}
 	app.HeadTracker = services.NewHeadTracker(headTrackerLogger, store, headTrackables)
-	serviceLoggers2[logger.HeadTracker] = app.HeadTracker
+	serviceLoggers[logger.HeadTracker] = app.HeadTracker
 
 	return app, nil
 }
@@ -324,24 +324,18 @@ func (app *ChainlinkApplication) SetServiceLogger(serviceName string, level stri
 		return err
 	}
 
-	b, err := json.Marshal(serviceLoggers2[serviceName])
-	if err != nil {
-		panic(err)
-	}
-
+	//TODO: Implement other service loggers
 	switch serviceName {
 	case logger.HeadTracker:
-		var ht services.HeadTracker
-		err := json.Unmarshal(b, &ht)
+		newL, err := app.GlobalLogger.InitServiceLevelLogger(app.GetStore().
+			Config.RootDir(), serviceName, app.GetStore().Config.JSONConsole(), app.GetStore().Config.LogToDisk(),
+			ll.String())
+
+		app.HeadTracker.SetLogger(newL)
+
 		if err != nil {
 			return err
 		}
-		newL, err := app.GlobalLogger.InitServiceLevelLogger(app.GetStore().
-			Config.RootDir(), serviceName, app.GetStore().Config.JSONConsole(), app.GetStore().Config.LogToDisk(),
-			ll.String(), serviceLoggers2[serviceName])
-
-		ht.SetLogger(newL)
-		//TODO: Implement other services
 	}
 
 	return nil
@@ -353,7 +347,7 @@ func getServiceLogLevels(config *orm.Config) (map[string]string, error) {
 
 	headTracker, err := config.ServiceLogLevel(logger.HeadTracker)
 	if err != nil {
-		logger.Fatal("error geetting service logger for head tracker")
+		logger.Fatal("error getting service log levels")
 	}
 
 	serviceLogLevels[logger.HeadTracker] = headTracker

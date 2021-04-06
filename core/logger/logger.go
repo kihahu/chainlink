@@ -97,7 +97,7 @@ func CreateProductionLogger(
 	return CreateLogger(zl.Sugar())
 }
 
-func (l *Logger) InitServiceLevelLogger(dir string, serviceName string, jsonConsole bool, toDisk bool, logLevel string, service interface{}) (*zap.SugaredLogger, error) {
+func (l *Logger) InitServiceLevelLogger(dir string, serviceName string, jsonConsole bool, toDisk bool, logLevel string) (*zap.SugaredLogger, error) {
 	config := zap.NewProductionConfig()
 	if !jsonConsole {
 		config.OutputPaths = []string{"pretty://console"}

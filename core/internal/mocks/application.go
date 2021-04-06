@@ -237,16 +237,16 @@ func (_m *Application) GetStatsPusher() synchronization.StatsPusher {
 	return r0
 }
 
-// GetApp retrieves the application reference
-func (_m *Application) GetApp() *chainlink.Application {
+// GetApp retrieves the application
+func (_m *Application) GetApp() *Application {
 	ret := _m.Called()
 
-	var r0 *chainlink.Application
-	if rf, ok := ret.Get(0).(func() *chainlink.Application); ok {
+	var r0 *Application
+	if rf, ok := ret.Get(0).(func() *Application); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chainlink.Application)
+			r0 = ret.Get(0).(*Application)
 		}
 	}
 
