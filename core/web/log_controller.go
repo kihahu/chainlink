@@ -46,7 +46,7 @@ func (cc *LogController) Patch(c *gin.Context) {
 	}
 
 	if request.Level == "" && request.Filter == "" && request.SqlEnabled == nil && request.ServiceName == "" && request.ServiceLevel == "" {
-		jsonAPIError(c, http.StatusInternalServerError, fmt.Errorf("please check request params, no params configured"))
+		jsonAPIError(c, http.StatusBadRequest, fmt.Errorf("please check request params, no params configured"))
 		return
 	}
 
