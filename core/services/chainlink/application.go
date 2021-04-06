@@ -343,7 +343,7 @@ func getServiceLogLevels(config *orm.Config) (map[string]string, error) {
 
 	headTracker, err := config.ServiceLogLevel(logger.HeadTracker)
 	if err != nil {
-		logger.Fatal("error getting service log levels")
+		logger.Fatalf("error getting service log levels: %v", err)
 	}
 
 	serviceLogLevels[logger.HeadTracker] = headTracker

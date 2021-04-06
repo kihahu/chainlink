@@ -802,7 +802,7 @@ func (c Config) ServiceLogLevel(serviceName string) (string, error) {
 			return level, nil
 		}
 	}
-	return "", fmt.Errorf("no log level configured for %s", serviceName)
+	return "info", nil
 }
 
 // SetLogLevel saves a runtime value for the default logger level
