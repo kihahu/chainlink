@@ -237,22 +237,6 @@ func (_m *Application) GetStatsPusher() synchronization.StatsPusher {
 	return r0
 }
 
-// GetApp retrieves the application
-func (_m *Application) GetApp() *Application {
-	ret := _m.Called()
-
-	var r0 *Application
-	if rf, ok := ret.Get(0).(func() *Application); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*Application)
-		}
-	}
-
-	return r0
-}
-
 // GetStore provides a mock function with given fields:
 func (_m *Application) GetStore() *store.Store {
 	ret := _m.Called()
@@ -376,6 +360,20 @@ func (_m *Application) Start() error {
 
 // Stop provides a mock function with given fields:
 func (_m *Application) Stop() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Stop provides a mock function with given fields:
+func (_m *Application) SetServiceLogger(service string, level string) error {
 	ret := _m.Called()
 
 	var r0 error

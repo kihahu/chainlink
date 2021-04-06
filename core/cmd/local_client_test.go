@@ -45,7 +45,6 @@ func TestClient_RunNodeShowsEnv(t *testing.T) {
 
 	app := new(mocks.Application)
 	app.On("GetStore").Return(store)
-	app.On("GetApp").Return(app)
 	app.On("Start").Return(nil)
 	app.On("Stop").Return(nil)
 
@@ -129,7 +128,6 @@ func TestClient_RunNodeWithPasswords(t *testing.T) {
 
 			app := new(mocks.Application)
 			app.On("GetStore").Return(store)
-			app.On("GetApp").Return(app)
 			app.On("Start").Maybe().Return(nil)
 			app.On("Stop").Maybe().Return(nil)
 
@@ -187,7 +185,6 @@ func TestClient_RunNode_CreateFundingKeyIfNotExists(t *testing.T) {
 
 	app := new(mocks.Application)
 	app.On("GetStore").Return(store)
-	app.On("GetApp").Return(app)
 	app.On("Start").Maybe().Return(nil)
 	app.On("Stop").Maybe().Return(nil)
 
@@ -254,7 +251,6 @@ func TestClient_RunNodeWithAPICredentialsFile(t *testing.T) {
 
 			app := new(mocks.Application)
 			app.On("GetStore").Return(store)
-			app.On("GetApp").Return(app)
 			app.On("Start").Maybe().Return(nil)
 			app.On("Stop").Maybe().Return(nil)
 
@@ -383,7 +379,6 @@ func TestClient_RebroadcastTransactions_BPTXM(t *testing.T) {
 
 	app := new(mocks.Application)
 	app.On("GetStore").Return(store)
-	app.On("GetApp").Return(app)
 	app.On("Stop").Return(nil)
 	ethClient := new(mocks.Client)
 	ethClient.On("Dial", mock.Anything).Return(nil)
@@ -467,7 +462,6 @@ func TestClient_RebroadcastTransactions_OutsideRange_BPTXM(t *testing.T) {
 
 			app := new(mocks.Application)
 			app.On("GetStore").Return(store)
-			app.On("GetApp").Return(app)
 			app.On("Stop").Return(nil)
 			ethClient := new(mocks.Client)
 			ethClient.On("Dial", mock.Anything).Return(nil)

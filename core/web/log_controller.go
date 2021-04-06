@@ -70,7 +70,7 @@ func (cc *LogController) Patch(c *gin.Context) {
 			return
 		}
 
-		if err := cc.App.GetApp().SetServiceLogger(request.ServiceName, level.String()); err != nil {
+		if err := cc.App.SetServiceLogger(request.ServiceName, level.String()); err != nil {
 			jsonAPIError(c, http.StatusInternalServerError, err)
 			return
 		}

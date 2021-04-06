@@ -78,7 +78,6 @@ func (c *headTrackableCallback) OnNewLongestChain(context.Context, models.Head) 
 type Application interface {
 	Start() error
 	Stop() error
-	GetApp() *ChainlinkApplication
 	GetStore() *strpkg.Store
 	GetJobORM() job.ORM
 	GetExternalInitiatorManager() ExternalInitiatorManager
@@ -92,6 +91,7 @@ type Application interface {
 	AddServiceAgreement(*models.ServiceAgreement) error
 	NewBox() packr.Box
 	AwaitRun(ctx context.Context, runID int64) error
+	SetServiceLogger(service string, level string) error
 	services.RunManager
 }
 
@@ -127,10 +127,6 @@ type ChainlinkApplication struct {
 
 	started     bool
 	startStopMu sync.Mutex
-}
-
-func (app *ChainlinkApplication) GetApp() *ChainlinkApplication {
-	return app
 }
 
 // NewApplication initializes a new store if one is not already
