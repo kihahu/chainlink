@@ -1357,5 +1357,8 @@ func TestClient_SetPkgLogLevel(t *testing.T) {
 
 	err := client.SetLogPkg(c)
 	require.NoError(t, err)
-	assert.Equal(t, logLevel, app.Config.LogLevel().String())
+
+	level, err := app.Config.ServiceLogLevel(logPkg)
+	require.NoError(t, err)
+	assert.Equal(t, logLevel, level)
 }

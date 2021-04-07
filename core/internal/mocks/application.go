@@ -6,6 +6,8 @@ import (
 	context "context"
 	big "math/big"
 
+	"go.uber.org/zap/zapcore"
+
 	chainlink "github.com/smartcontractkit/chainlink/core/services/chainlink"
 	store "github.com/smartcontractkit/chainlink/core/store"
 
@@ -373,7 +375,7 @@ func (_m *Application) Stop() error {
 }
 
 // Stop provides a mock function with given fields:
-func (_m *Application) SetServiceLogger(service string, level string) error {
+func (_m *Application) SetServiceLogger(ctx context.Context, service string, level zapcore.Level) error {
 	ret := _m.Called()
 
 	var r0 error
