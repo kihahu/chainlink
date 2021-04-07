@@ -16,6 +16,9 @@ import (
 // It implements uber/zap's SugaredLogger interface and adds conditional logging helpers.
 type Logger struct {
 	*zap.SugaredLogger
+	dir         string
+	jsonConsole bool
+	toDisk      bool
 }
 
 // Constants for service names for package specific logging configuration
@@ -69,8 +72,15 @@ func (l *Logger) PanicIf(err error) {
 
 // CreateLogger dwisott
 func CreateLogger(zl *zap.SugaredLogger) *Logger {
+	return &Logger{SugaredLogger: zl}
+}
+
+func CreateLoggerWithConfig(zl *zap.SugaredLogger, dir string, jsonConsole bool, toDisk bool) *Logger {
 	return &Logger{
 		SugaredLogger: zl,
+		dir:           dir,
+		jsonConsole:   jsonConsole,
+		toDisk:        toDisk,
 	}
 }
 
@@ -94,16 +104,16 @@ func CreateProductionLogger(
 	if err != nil {
 		log.Fatal(err)
 	}
-	return CreateLogger(zl.Sugar())
+	return CreateLoggerWithConfig(zl.Sugar(), dir, jsonConsole, toDisk)
 }
 
-func (l *Logger) InitServiceLevelLogger(dir string, serviceName string, jsonConsole bool, toDisk bool, logLevel string) (*zap.SugaredLogger, error) {
+func (l *Logger) InitServiceLevelLogger(serviceName string, logLevel string) (*Logger, error) {
 	config := zap.NewProductionConfig()
-	if !jsonConsole {
+	if !l.jsonConsole {
 		config.OutputPaths = []string{"pretty://console"}
 	}
-	if toDisk {
-		destination := logFileURI(dir)
+	if l.toDisk {
+		destination := logFileURI(l.dir)
 		config.OutputPaths = append(config.OutputPaths, destination)
 		config.ErrorOutputPaths = append(config.ErrorOutputPaths, destination)
 	}
@@ -119,5 +129,5 @@ func (l *Logger) InitServiceLevelLogger(dir string, serviceName string, jsonCons
 		return nil, err
 	}
 
-	return zl.Named(serviceName).Sugar(), nil
+	return CreateLoggerWithConfig(zl.Named(serviceName).Sugar(), l.dir, l.jsonConsole, l.toDisk), nil
 }

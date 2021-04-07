@@ -710,13 +710,6 @@ func (orm *ORM) SetConfigStrValue(ctx context.Context, field string, value strin
 		FirstOrCreate(&models.Configuration{}).Error
 }
 
-// SetConfigValue returns the value for a named configuration entry
-func (orm *ORM) SetLogConfigValue(ctx context.Context, serviceName string, level string) error {
-	return orm.DB.WithContext(ctx).Where(models.LogConfig{ServiceName: serviceName}).
-		Assign(models.LogConfig{ServiceName: serviceName, LogLevel: level}).
-		FirstOrCreate(&models.LogConfig{ServiceName: serviceName, LogLevel: level}).Error
-}
-
 // CreateJob saves a job to the database and adds IDs to associated tables.
 func (orm *ORM) CreateJob(job *models.JobSpec) error {
 	return orm.createJob(orm.DB, job)

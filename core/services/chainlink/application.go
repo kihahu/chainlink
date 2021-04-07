@@ -43,8 +43,6 @@ import (
 	"gopkg.in/guregu/null.v4"
 )
 
-var serviceLoggers = map[string]interface{}{}
-
 //go:generate mockery --name ExternalInitiatorManager --output ../../internal/mocks/ --case=underscore
 type (
 	// headTrackableCallback is a simple wrapper around an On Connect callback
@@ -91,7 +89,7 @@ type Application interface {
 	AddServiceAgreement(*models.ServiceAgreement) error
 	NewBox() packr.Box
 	AwaitRun(ctx context.Context, runID int64) error
-	SetServiceLogger(service string, level string) error
+	SetServiceLogger(ctx context.Context, service string, level zapcore.Level) error
 	services.RunManager
 }
 
@@ -123,7 +121,7 @@ type ChainlinkApplication struct {
 	balanceMonitor           services.BalanceMonitor
 	explorerClient           synchronization.ExplorerClient
 	subservices              []StartCloser
-	GlobalLogger             *logger.Logger
+	logger                   *logger.Logger
 
 	started     bool
 	startStopMu sync.Mutex
@@ -179,7 +177,7 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 	if err != nil {
 		logger.Fatalf("error getting log levels: %v", err)
 	}
-	headTrackerLogger, err := globalLogger.InitServiceLevelLogger(config.RootDir(), logger.HeadTracker, config.JSONConsole(), config.LogToDisk(), serviceLogLevels[logger.HeadTracker])
+	headTrackerLogger, err := globalLogger.InitServiceLevelLogger(logger.HeadTracker, serviceLogLevels[logger.HeadTracker])
 	if err != nil {
 		logger.Fatal("error starting logger for head tracker")
 	}
@@ -285,7 +283,7 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 		shutdownSignal:           shutdownSignal,
 		balanceMonitor:           balanceMonitor,
 		explorerClient:           explorerClient,
-		GlobalLogger:             globalLogger,
+		logger:                   globalLogger,
 		// NOTE: Can keep things clean by putting more things in subservices
 		// instead of manually start/closing
 		subservices: subservices,
@@ -308,25 +306,17 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 		headTrackables = append(headTrackables, headTrackable)
 	}
 	app.HeadTracker = services.NewHeadTracker(headTrackerLogger, store, headTrackables)
-	serviceLoggers[logger.HeadTracker] = app.HeadTracker
 
 	return app, nil
 }
 
-// SetServiceLogger sets the logger for a given service
-func (app *ChainlinkApplication) SetServiceLogger(serviceName string, level string) error {
-	var ll zapcore.Level
-	if err := ll.UnmarshalText([]byte(level)); err != nil {
-		return err
-	}
+// SetServiceLogger sets the logger for a given service and stores the setting in the db
+func (app *ChainlinkApplication) SetServiceLogger(ctx context.Context, serviceName string, level zapcore.Level) error {
 
 	//TODO: Implement other service loggers
 	switch serviceName {
 	case logger.HeadTracker:
-		newL, err := app.GlobalLogger.InitServiceLevelLogger(app.GetStore().
-			Config.RootDir(), serviceName, app.GetStore().Config.JSONConsole(), app.GetStore().Config.LogToDisk(),
-			ll.String())
-
+		newL, err := app.logger.InitServiceLevelLogger(serviceName, level.String())
 		app.HeadTracker.SetLogger(newL)
 
 		if err != nil {
@@ -334,7 +324,9 @@ func (app *ChainlinkApplication) SetServiceLogger(serviceName string, level stri
 		}
 	}
 
-	return nil
+	return app.Store.DB.WithContext(ctx).Where(models.LogConfig{ServiceName: serviceName}).
+		Assign(models.LogConfig{ServiceName: serviceName, LogLevel: level.String()}).
+		FirstOrCreate(&models.LogConfig{ServiceName: serviceName, LogLevel: level.String()}).Error
 }
 
 // getServiceLogLevels retrieves all service log levels from the db

@@ -12,11 +12,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/smartcontractkit/chainlink/core/logger"
 	strpkg "github.com/smartcontractkit/chainlink/core/store"
 	"github.com/smartcontractkit/chainlink/core/store/models"
 	"github.com/smartcontractkit/chainlink/core/store/presenters"
 	"github.com/smartcontractkit/chainlink/core/utils"
-	"go.uber.org/zap"
 )
 
 var (
@@ -58,10 +58,10 @@ type headRingBuffer struct {
 	in     <-chan *models.Head
 	out    chan models.Head
 	start  sync.Once
-	logger *zap.SugaredLogger
+	logger *logger.Logger
 }
 
-func newHeadRingBuffer(in <-chan *models.Head, size int, logger *zap.SugaredLogger) (r *headRingBuffer, out chan models.Head) {
+func newHeadRingBuffer(in <-chan *models.Head, size int, logger *logger.Logger) (r *headRingBuffer, out chan models.Head) {
 	out = make(chan models.Head, size)
 	return &headRingBuffer{
 		in:     in,
@@ -118,7 +118,7 @@ func (r *headRingBuffer) run() {
 // in a thread safe manner. Reconstitutes the last block number from the data
 // store on reboot.
 type HeadTracker struct {
-	logger                *zap.SugaredLogger
+	logger                *logger.Logger
 	callbacks             []strpkg.HeadTrackable
 	inHeaders             chan *models.Head
 	outHeaders            chan models.Head
@@ -138,7 +138,7 @@ type HeadTracker struct {
 // NewHeadTracker instantiates a new HeadTracker using the orm to persist new block numbers.
 // Can be passed in an optional sleeper object that will dictate how often
 // it tries to reconnect.
-func NewHeadTracker(l *zap.SugaredLogger, store *strpkg.Store, callbacks []strpkg.HeadTrackable, sleepers ...utils.Sleeper) *HeadTracker {
+func NewHeadTracker(l *logger.Logger, store *strpkg.Store, callbacks []strpkg.HeadTrackable, sleepers ...utils.Sleeper) *HeadTracker {
 	var sleeper utils.Sleeper
 	if len(sleepers) > 0 {
 		sleeper = sleepers[0]
@@ -155,7 +155,7 @@ func NewHeadTracker(l *zap.SugaredLogger, store *strpkg.Store, callbacks []strpk
 }
 
 // SetLogger sets and reconfigures the logger for the head tracker service
-func (ht *HeadTracker) SetLogger(logger *zap.SugaredLogger) {
+func (ht *HeadTracker) SetLogger(logger *logger.Logger) {
 	ht.logger = logger
 }
 

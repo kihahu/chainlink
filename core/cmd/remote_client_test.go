@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/smartcontractkit/chainlink/core/logger"
 	"github.com/smartcontractkit/chainlink/core/services/job"
 	"github.com/smartcontractkit/chainlink/core/web"
 
@@ -1339,4 +1340,22 @@ func TestClient_SetLogConfig(t *testing.T) {
 	err = client.SetLogSQL(c)
 	assert.NoError(t, err)
 	assert.Equal(t, sqlEnabled, app.Config.LogSQLStatements())
+}
+
+func TestClient_SetPkgLogLevel(t *testing.T) {
+	t.Parallel()
+
+	app := startNewApplication(t)
+	client, _ := app.NewClientAndRenderer()
+
+	logPkg := logger.HeadTracker
+	logLevel := "warn"
+	set := flag.NewFlagSet("logpkg", 0)
+	set.String("pkg", logPkg, "")
+	set.String("level", logLevel, "")
+	c := cli.NewContext(nil, set, nil)
+
+	err := client.SetLogPkg(c)
+	require.NoError(t, err)
+	assert.Equal(t, logLevel, app.Config.LogLevel().String())
 }
