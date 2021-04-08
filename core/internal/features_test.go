@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
-
 	"github.com/smartcontractkit/chainlink/core/store/dialects"
 
 	"github.com/smartcontractkit/chainlink/core/services/bulletprooftxmanager"
@@ -1602,10 +1601,16 @@ func TestIntegration_DirectRequest(t *testing.T) {
 			*head = cltest.Head(10)
 		}).
 		Return(nil)
-	rpcClient.On("EthSubscribe", mock.Anything, mock.Anything, "newHeads").Maybe().Return(sub, nil)
+
+	var headCh chan<- *models.Head
+	rpcClient.On("EthSubscribe", mock.Anything, mock.Anything, "newHeads").Maybe().
+		Run(func(args mock.Arguments) {
+			headCh = args.Get(1).(chan<- *models.Head)
+		}).
+		Return(sub, nil)
 
 	gethClient.On("ChainID", mock.Anything).Maybe().Return(app.Store.Config.ChainID(), nil)
-	gethClient.On("FilterLogs", mock.Anything, mock.Anything).Maybe().Return([]models.Log{}, nil)
+	gethClient.On("FilterLogs", mock.Anything, mock.Anything).Maybe().Return([]types.Log{}, nil)
 	logsCh := cltest.MockSubscribeToLogsCh(gethClient, sub)
 
 	require.NoError(t, app.StartAndConnect())
@@ -1628,7 +1633,7 @@ func TestIntegration_DirectRequest(t *testing.T) {
 	eventBroadcaster.Notify(postgres.ChannelJobCreated, "")
 
 	runLog := cltest.NewRunLog(t, job.DirectRequestSpec.OnChainJobSpecID, job.DirectRequestSpec.ContractAddress.Address(), cltest.NewAddress(), 1, `{}`)
-	var logs chan<- models.Log
+	var logs chan<- types.Log
 	cltest.CallbackOrTimeout(t, "obtain log channel", func() {
 		logs = <-logsCh
 	}, 5*time.Second)
@@ -1637,6 +1642,7 @@ func TestIntegration_DirectRequest(t *testing.T) {
 	}, 30*time.Second)
 
 	eventBroadcaster.Notify(postgres.ChannelRunStarted, "")
+	headCh <- &models.Head{Number: 10}
 
 	httpAwaiter.AwaitOrFail(t)
 

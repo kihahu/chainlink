@@ -63,9 +63,8 @@ type FluxMonitor struct {
 	backlog       *utils.BoundedPriorityQueue
 	chProcessLogs chan struct{}
 
-	readyForLogs func()
-	chStop       chan struct{}
-	waitOnStop   chan struct{}
+	chStop     chan struct{}
+	waitOnStop chan struct{}
 }
 
 // NewFluxMonitor returns a new instance of PollingDeviationChecker.
@@ -85,7 +84,6 @@ func NewFluxMonitor(
 	fluxAggregator flux_aggregator_wrapper.FluxAggregatorInterface,
 	logBroadcaster log.Broadcaster,
 	precision int32,
-	readyForLogs func(),
 	fmLogger *logger.Logger,
 ) (*FluxMonitor, error) {
 	fm := &FluxMonitor{
@@ -101,7 +99,6 @@ func NewFluxMonitor(
 		deviationChecker:  deviationChecker,
 		submissionChecker: submissionChecker,
 		flags:             flags,
-		readyForLogs:      readyForLogs,
 		logBroadcaster:    logBroadcaster,
 		fluxAggregator:    fluxAggregator,
 		precision:         precision,
@@ -145,7 +142,6 @@ func NewFromJobSpec(
 	}
 
 	// Set up the flux aggregator
-	logBroadcaster.AddDependents(1)
 	fluxAggregator, err := flux_aggregator_wrapper.NewFluxAggregator(
 		fmSpec.ContractAddress.Address(),
 		ethClient,
@@ -233,7 +229,6 @@ func NewFromJobSpec(
 		fluxAggregator,
 		logBroadcaster,
 		fmSpec.Precision,
-		func() { logBroadcaster.DependentReady() },
 		fmLogger,
 	)
 }
@@ -369,7 +364,6 @@ func (fm *FluxMonitor) consume() {
 		defer unsubscribe()
 	}
 
-	fm.readyForLogs()
 	fm.pollManager.Start(fm.IsHibernating(), fm.initialRoundState())
 	fm.performInitialPoll()
 

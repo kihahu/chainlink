@@ -184,7 +184,6 @@ func setup(t *testing.T, optionFns ...func(*setupOptions)) (*fluxmonitorv2.FluxM
 		tm.fluxAggregator,
 		tm.logBroadcaster,
 		precision,
-		func() {},
 		logger.Default,
 	)
 	require.NoError(t, err)
