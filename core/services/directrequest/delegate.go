@@ -43,11 +43,11 @@ func (d *Delegate) JobType() job.Type {
 }
 
 // ServicesForSpec returns the log listener service for a direct request job
-func (d *Delegate) ServicesForSpec(spec job.Job) (services []job.Service, err error) {
-	if spec.DirectRequestSpec == nil {
-		return nil, errors.Errorf("services.Delegate expects a *job.DirectRequestSpec to be present, got %v", spec)
+func (d *Delegate) ServicesForSpec(job job.Job) (services []job.Service, err error) {
+	if job.DirectRequestSpec == nil {
+		return nil, errors.Errorf("services.Delegate expects a *job.DirectRequestSpec to be present, got %v", job)
 	}
-	concreteSpec := spec.DirectRequestSpec
+	concreteSpec := job.DirectRequestSpec
 
 	oracle, err := oracle_wrapper.NewOracle(concreteSpec.ContractAddress.Address(), d.ethClient)
 	if err != nil {
@@ -60,9 +60,9 @@ func (d *Delegate) ServicesForSpec(spec job.Job) (services []job.Service, err er
 		pipelineRunner: d.pipelineRunner,
 		db:             d.db,
 		pipelineORM:    d.pipelineORM,
-		spec:           *spec.PipelineSpec,
+		job:            job,
 	}
-	copy(logListener.onChainJobSpecID[:], spec.DirectRequestSpec.OnChainJobSpecID.Bytes())
+	copy(logListener.onChainJobSpecID[:], job.DirectRequestSpec.OnChainJobSpecID.Bytes())
 	services = append(services, logListener)
 
 	return
@@ -80,7 +80,7 @@ type listener struct {
 	pipelineRunner    pipeline.Runner
 	db                *gorm.DB
 	pipelineORM       pipeline.ORM
-	spec              pipeline.Spec
+	job               job.Job
 	onChainJobSpecID  common.Hash
 	runs              sync.Map
 	shutdownWaitGroup sync.WaitGroup
@@ -183,8 +183,8 @@ func (l *listener) handleOracleRequest(request *oracle_wrapper.OracleOracleReque
 	meta["oracleRequest"] = oracleRequestToMap(request)
 
 	logger := logger.CreateLogger(logger.Default.With(
-		"jobName", l.spec.JobName,
-		"jobID", l.spec.JobID,
+		"jobName", l.job.PipelineSpec.JobName,
+		"jobID", l.job.PipelineSpec.JobID,
 	))
 
 	l.shutdownWaitGroup.Add(1)
@@ -199,7 +199,7 @@ func (l *listener) handleOracleRequest(request *oracle_wrapper.OracleOracleReque
 		ctx, cancel := utils.CombinedContext(runCloserChannel, context.Background())
 		defer cancel()
 
-		_, _, err := l.pipelineRunner.ExecuteAndInsertNewRun(ctx, l.spec, pipeline.JSONSerializable{Val: meta, Null: false}, *logger, true)
+		_, _, err := l.pipelineRunner.ExecuteAndInsertNewRun(ctx, *l.job.PipelineSpec, pipeline.JSONSerializable{Val: meta, Null: false}, *logger, true)
 		if ctx.Err() != nil {
 			return
 		} else if err != nil {
@@ -223,7 +223,7 @@ func (*listener) JobID() models.JobID {
 
 // Job complies with log.Listener
 func (l *listener) JobIDV2() int32 {
-	return l.spec.ID
+	return l.job.ID
 }
 
 // IsV2Job complies with log.Listener
