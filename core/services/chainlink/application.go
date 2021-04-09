@@ -76,6 +76,7 @@ func (c *headTrackableCallback) OnNewLongestChain(context.Context, models.Head) 
 type Application interface {
 	Start() error
 	Stop() error
+	GetLogger() *logger.Logger
 	GetStore() *strpkg.Store
 	GetJobORM() job.ORM
 	GetExternalInitiatorManager() ExternalInitiatorManager
@@ -121,7 +122,7 @@ type ChainlinkApplication struct {
 	balanceMonitor           services.BalanceMonitor
 	explorerClient           synchronization.ExplorerClient
 	subservices              []StartCloser
-	logger                   *logger.Logger
+	Logger                   *logger.Logger
 
 	started     bool
 	startStopMu sync.Mutex
@@ -173,7 +174,8 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 
 	// Init service loggers
 	globalLogger := config.CreateProductionLogger()
-	serviceLogLevels, err := getServiceLogLevels(config)
+	globalLogger.SetDB(store.DB)
+	serviceLogLevels, err := getServiceLogLevels(globalLogger)
 	if err != nil {
 		logger.Fatalf("error getting log levels: %v", err)
 	}
@@ -283,7 +285,7 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 		shutdownSignal:           shutdownSignal,
 		balanceMonitor:           balanceMonitor,
 		explorerClient:           explorerClient,
-		logger:                   globalLogger,
+		Logger:                   globalLogger,
 		// NOTE: Can keep things clean by putting more things in subservices
 		// instead of manually start/closing
 		subservices: subservices,
@@ -310,13 +312,13 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 	return app, nil
 }
 
-// SetServiceLogger sets the logger for a given service and stores the setting in the db
+// SetServiceLogger sets the Logger for a given service and stores the setting in the db
 func (app *ChainlinkApplication) SetServiceLogger(ctx context.Context, serviceName string, level zapcore.Level) error {
 
 	//TODO: Implement other service loggers
 	switch serviceName {
 	case logger.HeadTracker:
-		newL, err := app.logger.InitServiceLevelLogger(serviceName, level.String())
+		newL, err := app.Logger.InitServiceLevelLogger(serviceName, level.String())
 		app.HeadTracker.SetLogger(newL)
 
 		if err != nil {
@@ -324,16 +326,16 @@ func (app *ChainlinkApplication) SetServiceLogger(ctx context.Context, serviceNa
 		}
 	}
 
-	return app.Store.DB.WithContext(ctx).Where(models.LogConfig{ServiceName: serviceName}).
-		Assign(models.LogConfig{ServiceName: serviceName, LogLevel: level.String()}).
-		FirstOrCreate(&models.LogConfig{ServiceName: serviceName, LogLevel: level.String()}).Error
+	return app.Store.DB.WithContext(ctx).Where(logger.LogConfig{ServiceName: serviceName}).
+		Assign(logger.LogConfig{ServiceName: serviceName, LogLevel: level.String()}).
+		FirstOrCreate(&logger.LogConfig{ServiceName: serviceName, LogLevel: level.String()}).Error
 }
 
 // getServiceLogLevels retrieves all service log levels from the db
-func getServiceLogLevels(config *orm.Config) (map[string]string, error) {
+func getServiceLogLevels(globalLogger *logger.Logger) (map[string]string, error) {
 	serviceLogLevels := make(map[string]string)
 
-	headTracker, err := config.ServiceLogLevel(logger.HeadTracker)
+	headTracker, err := globalLogger.ServiceLogLevel(logger.HeadTracker)
 	if err != nil {
 		logger.Fatalf("error getting service log levels: %v", err)
 	}
@@ -513,6 +515,10 @@ func (app *ChainlinkApplication) stop() error {
 // GetStore returns the pointer to the store for the ChainlinkApplication.
 func (app *ChainlinkApplication) GetStore() *strpkg.Store {
 	return app.Store
+}
+
+func (app *ChainlinkApplication) GetLogger() *logger.Logger {
+	return app.Logger
 }
 
 func (app *ChainlinkApplication) GetJobORM() job.ORM {

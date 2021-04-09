@@ -792,19 +792,6 @@ func (c Config) LogLevel() LogLevel {
 	return c.getWithFallback("LogLevel", parseLogLevel).(LogLevel)
 }
 
-// ServiceLogLevel is the log level set for a specified package
-func (c Config) ServiceLogLevel(serviceName string) (string, error) {
-	if c.runtimeStore != nil {
-		level, err := c.runtimeStore.GetServiceLogLevel(serviceName)
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warnf("Error while trying to fetch %s service log level: %v", serviceName, err)
-		} else if err == nil {
-			return level, nil
-		}
-	}
-	return "info", nil
-}
-
 // SetLogLevel saves a runtime value for the default logger level
 func (c Config) SetLogLevel(ctx context.Context, value string) error {
 	if c.runtimeStore == nil {

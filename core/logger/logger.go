@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"runtime"
 
+	"gorm.io/gorm"
+
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -16,6 +18,7 @@ import (
 // It implements uber/zap's SugaredLogger interface and adds conditional logging helpers.
 type Logger struct {
 	*zap.SugaredLogger
+	orm         ORM
 	dir         string
 	jsonConsole bool
 	toDisk      bool
@@ -24,6 +27,7 @@ type Logger struct {
 // Constants for service names for package specific logging configuration
 var (
 	HeadTracker = "head_tracker"
+	FluxMonitor = "flux_monitor"
 )
 
 // Write logs a message at the Info level and returns the length
@@ -68,6 +72,10 @@ func (l *Logger) PanicIf(err error) {
 	if err != nil {
 		l.Panic(err)
 	}
+}
+
+func (l *Logger) SetDB(db *gorm.DB) {
+	l.orm = NewORM(db)
 }
 
 // CreateLogger dwisott
@@ -130,4 +138,17 @@ func (l *Logger) InitServiceLevelLogger(serviceName string, logLevel string) (*L
 	}
 
 	return CreateLoggerWithConfig(zl.Named(serviceName).Sugar(), l.dir, l.jsonConsole, l.toDisk), nil
+}
+
+// ServiceLogLevel is the log level set for a specified package
+func (l *Logger) ServiceLogLevel(serviceName string) (string, error) {
+	if l.orm != nil {
+		level, err := l.orm.GetServiceLogLevel(serviceName)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			Warnf("Error while trying to fetch %s service log level: %v", serviceName, err)
+		} else if err == nil {
+			return level, nil
+		}
+	}
+	return "info", nil
 }

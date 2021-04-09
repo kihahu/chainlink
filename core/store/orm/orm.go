@@ -667,15 +667,6 @@ func (orm *ORM) GetConfigValue(field string, value encoding.TextUnmarshaler) err
 	return value.UnmarshalText([]byte(config.Value))
 }
 
-// GetServiceLogLevel returns the log level for a configured service
-func (orm *ORM) GetServiceLogLevel(serviceName string) (string, error) {
-	config := models.LogConfig{}
-	if err := orm.DB.First(&config, "service_name = ?", serviceName).Error; err != nil {
-		return "", err
-	}
-	return config.LogLevel, nil
-}
-
 // GetConfigBoolValue returns a boolean value for a named configuration entry
 func (orm *ORM) GetConfigBoolValue(field string) (*bool, error) {
 	name := EnvVarName(field)

@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap/zapcore"
 
+	"github.com/smartcontractkit/chainlink/core/logger"
 	chainlink "github.com/smartcontractkit/chainlink/core/services/chainlink"
 	store "github.com/smartcontractkit/chainlink/core/store"
 
@@ -233,6 +234,21 @@ func (_m *Application) GetStatsPusher() synchronization.StatsPusher {
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(synchronization.StatsPusher)
+		}
+	}
+
+	return r0
+}
+
+func (_m *Application) GetLogger() *logger.Logger {
+	ret := _m.Called()
+
+	var r0 *logger.Logger
+	if rf, ok := ret.Get(0).(func() *logger.Logger); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*logger.Logger)
 		}
 	}
 

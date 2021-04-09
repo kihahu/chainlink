@@ -1222,10 +1222,16 @@ func (cli *Client) SetLogSQL(c *clipkg.Context) (err error) {
 
 // SetLogPkg sets the package log filter on the node
 func (cli *Client) SetLogPkg(c *clipkg.Context) (err error) {
-	pkg := c.String("pkg")
-	level := c.String("level")
+	pkg := strings.Split(c.String("pkg"), ",")
+	level := strings.Split(c.String("level"), ",")
 
-	request := web.LogPatchRequest{ServiceName: pkg, ServiceLevel: level}
+	serviceLogLevel := make([][2]string, len(pkg))
+	for i, p := range pkg {
+		serviceLogLevel[i][0] = p
+		serviceLogLevel[i][1] = level[i]
+	}
+
+	request := web.LogPatchRequest{ServiceLogLevel: serviceLogLevel}
 	requestData, err := json.Marshal(request)
 	if err != nil {
 		return cli.errorOut(err)
