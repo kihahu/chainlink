@@ -27,6 +27,7 @@ func newUpkeep(registry keeper.Registry, upkeepID int64) keeper.UpkeepRegistrati
 		UpkeepID:   upkeepID,
 		ExecuteGas: executeGas,
 		Registry:   registry,
+		RegistryID: registry.ID,
 		CheckData:  checkData,
 	}
 }
@@ -60,6 +61,7 @@ func TestKeeperDB_UpsertUpkeep(t *testing.T) {
 		UpkeepID:            0,
 		ExecuteGas:          executeGas,
 		Registry:            registry,
+		RegistryID:          registry.ID,
 		CheckData:           checkData,
 		LastRunBlockHeight:  1,
 		PositioningConstant: 1,

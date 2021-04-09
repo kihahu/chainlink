@@ -821,6 +821,7 @@ func MustInsertUpkeepForRegistry(t *testing.T, store *strpkg.Store, registry kee
 		UpkeepID:   upkeepID,
 		ExecuteGas: int32(10_000),
 		Registry:   registry,
+		RegistryID: registry.ID,
 		CheckData:  common.Hex2Bytes("ABC123"),
 	}
 	err = store.DB.Create(&upkeep).Error
