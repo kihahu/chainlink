@@ -213,6 +213,8 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 			job.DirectRequest: directrequest.NewDelegate(
 				logBroadcaster,
 				pipelineRunner,
+				pipelineORM,
+				ethClient,
 				store.DB,
 			),
 			job.Keeper: keeper.NewDelegate(store.DB, store.EthClient, headBroadcaster, logBroadcaster, config),

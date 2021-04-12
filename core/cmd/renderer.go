@@ -104,6 +104,8 @@ func (rt RendererTable) Render(v interface{}, headers ...string) error {
 		return rt.renderPipelineRun(*typed)
 	case *webpresenters.ServiceLogConfigResource:
 		return rt.renderLogPkgConfig(*typed)
+	case *[]VRFKeyPresenter:
+		return rt.renderVRFKeys(*typed)
 	default:
 		return fmt.Errorf("unable to render object of type %T: %v", typed, typed)
 	}
@@ -120,6 +122,25 @@ func (rt RendererTable) renderLogPkgConfig(serviceLevelLog webpresenters.Service
 	}
 
 	render("ServiceLogConfig", table)
+  return nil
+}
+
+func (rt RendererTable) renderVRFKeys(keys []VRFKeyPresenter) error {
+	var rows [][]string
+
+	for _, key := range keys {
+		rows = append(rows, []string{
+			key.Compressed,
+			key.Uncompressed,
+			key.Hash,
+			key.FriendlyCreatedAt(),
+			key.FriendlyUpdatedAt(),
+			key.FriendlyDeletedAt(),
+		})
+	}
+
+	renderList([]string{"Compressed", "Uncompressed", "Hash", "Created", "Updated", "Deleted"}, rows, rt.Writer)
+
 	return nil
 }
 
@@ -193,7 +214,7 @@ func render(name string, table *tablewriter.Table) {
 	table.Render()
 }
 
-func renderList(fields []string, items [][]string) {
+func renderList(fields []string, items [][]string, writer io.Writer) {
 	var maxLabelLength int
 	for _, field := range fields {
 		if len(field) > maxLabelLength {
@@ -217,7 +238,11 @@ func renderList(fields []string, items [][]string) {
 	}
 	divider := strings.Repeat("-", maxLineLength)
 	listRendered := divider + "\n" + strings.Join(itemsRendered, "\n"+divider+"\n")
-	fmt.Println(listRendered)
+	_, err := writer.Write([]byte(listRendered))
+	if err != nil {
+		// Handles errcheck
+		return
+	}
 }
 
 func jobRowToStrings(job models.JobSpec) []string {
@@ -453,7 +478,7 @@ func (rt RendererTable) renderETHKeys(keys []webpresenters.ETHKeyResource) error
 		})
 	}
 
-	renderList([]string{"Address", "ETH", "LINK", "Next nonce", "Last used", "Is funding", "Created", "Updated", "Deleted"}, rows)
+	renderList([]string{"Address", "ETH", "LINK", "Next nonce", "Last used", "Is funding", "Created", "Updated", "Deleted"}, rows, rt.Writer)
 	return nil
 }
 
@@ -474,7 +499,7 @@ func (rt RendererTable) renderP2PKeys(p2pKeys []p2pkey.EncryptedP2PKey) error {
 		})
 	}
 	fmt.Println("\n🔑 P2P Keys")
-	renderList([]string{"ID", "Peer ID", "Public key", "Created", "Updated", "Deleted"}, rows)
+	renderList([]string{"ID", "Peer ID", "Public key", "Created", "Updated", "Deleted"}, rows, rt.Writer)
 	return nil
 }
 
@@ -496,7 +521,7 @@ func (rt RendererTable) renderOCRKeys(ocrKeys []ocrkey.EncryptedKeyBundle) error
 		})
 	}
 	fmt.Println("\n🔑 OCR Keys")
-	renderList([]string{"ID", "On-chain signing addr", "Off-chain pubkey", "Config pubkey", "Created", "Updated", "Deleted"}, rows)
+	renderList([]string{"ID", "On-chain signing addr", "Off-chain pubkey", "Config pubkey", "Created", "Updated", "Deleted"}, rows, rt.Writer)
 	return nil
 }
 
