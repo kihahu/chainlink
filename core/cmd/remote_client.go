@@ -1179,8 +1179,8 @@ func (cli *Client) SetLogLevel(c *clipkg.Context) (err error) {
 		}
 	}()
 
-	var lR webPresenter.LogResource
-	err = cli.renderAPIResponse(resp, &lR)
+	var svcLogConfig webPresenter.ServiceLogConfigResource
+	err = cli.renderAPIResponse(resp, &svcLogConfig)
 	return err
 }
 
@@ -1215,8 +1215,8 @@ func (cli *Client) SetLogSQL(c *clipkg.Context) (err error) {
 		}
 	}()
 
-	var lR webPresenter.LogResource
-	err = cli.renderAPIResponse(resp, &lR)
+	var svcLogConfig webPresenter.ServiceLogConfigResource
+	err = cli.renderAPIResponse(resp, &svcLogConfig)
 	return err
 }
 
@@ -1248,8 +1248,8 @@ func (cli *Client) SetLogPkg(c *clipkg.Context) (err error) {
 		}
 	}()
 
-	var lR webPresenter.ServiceLevelLog
-	err = cli.renderAPIResponse(resp, &lR)
+	var svcLogConfig webPresenter.ServiceLogConfigResource
+	err = cli.renderAPIResponse(resp, &svcLogConfig)
 	return err
 }
 

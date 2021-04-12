@@ -102,34 +102,24 @@ func (rt RendererTable) Render(v interface{}, headers ...string) error {
 		return rt.renderJobsV2([]Job{*typed})
 	case *pipeline.Run:
 		return rt.renderPipelineRun(*typed)
-	case *webpresenters.LogResource:
-		return rt.renderLogResource(*typed)
-	case *webpresenters.ServiceLevelLog:
+	case *webpresenters.ServiceLogConfigResource:
 		return rt.renderLogPkgConfig(*typed)
 	default:
 		return fmt.Errorf("unable to render object of type %T: %v", typed, typed)
 	}
 }
 
-func (rt RendererTable) renderLogResource(logResource webpresenters.LogResource) error {
-	table := rt.newTable([]string{"ID", "Level", "SqlEnabled"})
-	table.Append([]string{
-		logResource.ID,
-		logResource.Level,
-		strconv.FormatBool(logResource.SqlEnabled),
-	})
-	render("Logs", table)
-	return nil
-}
+func (rt RendererTable) renderLogPkgConfig(serviceLevelLog webpresenters.ServiceLogConfigResource) error {
+	table := rt.newTable([]string{"ID", "Service", "LogLevel"})
+	for i, svcName := range serviceLevelLog.ServiceName {
+		table.Append([]string{
+			serviceLevelLog.ID,
+			svcName,
+			serviceLevelLog.LogLevel[i],
+		})
+	}
 
-func (rt RendererTable) renderLogPkgConfig(serviceLevelLog webpresenters.ServiceLevelLog) error {
-	table := rt.newTable([]string{"ID", "ServiceName", "LogLevel"})
-	table.Append([]string{
-		serviceLevelLog.ID,
-		serviceLevelLog.ServiceName,
-		serviceLevelLog.LogLevel,
-	})
-	render("ServiceLevelLogs", table)
+	render("ServiceLogConfig", table)
 	return nil
 }
 

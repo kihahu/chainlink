@@ -27,8 +27,12 @@ type Logger struct {
 // Constants for service names for package specific logging configuration
 var (
 	HeadTracker = "head_tracker"
-	FluxMonitor = "flux_monitor"
+	FluxMonitor = "fluxmonitor"
 )
+
+func GetLogServices() []string {
+	return []string{HeadTracker, FluxMonitor}
+}
 
 // Write logs a message at the Info level and returns the length
 // of the given bytes.

@@ -342,6 +342,13 @@ func getServiceLogLevels(globalLogger *logger.Logger) (map[string]string, error)
 
 	serviceLogLevels[logger.HeadTracker] = headTracker
 
+	fluxMonitor, err := globalLogger.ServiceLogLevel(logger.FluxMonitor)
+	if err != nil {
+		logger.Fatalf("error getting service log levels: %v", err)
+	}
+
+	serviceLogLevels[logger.FluxMonitor] = fluxMonitor
+
 	return serviceLogLevels, nil
 }
 
