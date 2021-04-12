@@ -42,7 +42,10 @@ func StartJobSubscription(job models.JobSpec, head *models.Head, store *strpkg.S
 
 	initrs := job.InitiatorsFor(models.LogBasedChainlinkJobInitiators...)
 
-	nextHead := head.NextInt() // Exclude current block from subscription
+	nextHead := big.NewInt(0)
+	if head != nil {
+		nextHead = head.NextInt() // Exclude current block from subscription
+	}
 	if replayFromBlock := store.Config.ReplayFromBlock(); replayFromBlock >= 0 {
 		if replayFromBlock >= nextHead.Int64() {
 			logger.Infof("StartJobSubscription: Next head was supposed to be %v but ReplayFromBlock flag manually overrides to %v, will subscribe from blocknum %v", nextHead, replayFromBlock, replayFromBlock)

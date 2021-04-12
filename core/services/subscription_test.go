@@ -361,16 +361,17 @@ func TestServices_NewInitiatorSubscription_EthLog_ReplayFromBlock(t *testing.T) 
 
 	cases := []struct {
 		name                string
-		currentHead         int
+		currentHead         *models.Head
 		initrParamFromBlock *utils.Big
 		wantFromBlock       *big.Int
 	}{
-		{"head < ReplayFromBlock, no initr fromBlock", 5, nil, big.NewInt(10)},
-		{"head > ReplayFromBlock, no initr fromBlock", 14, nil, big.NewInt(15)},
-		{"head < ReplayFromBlock, initr fromBlock > ReplayFromBlock", 5, utils.NewBig(big.NewInt(12)), big.NewInt(12)},
-		{"head < ReplayFromBlock, initr fromBlock < ReplayFromBlock", 5, utils.NewBig(big.NewInt(8)), big.NewInt(10)},
-		{"head > ReplayFromBlock, initr fromBlock > ReplayFromBlock", 14, utils.NewBig(big.NewInt(12)), big.NewInt(15)},
-		{"head > ReplayFromBlock, initr fromBlock < ReplayFromBlock", 14, utils.NewBig(big.NewInt(8)), big.NewInt(15)},
+		{"head is nil", nil, nil, big.NewInt(10)},
+		{"head < ReplayFromBlock, no initr fromBlock", cltest.Head(5), nil, big.NewInt(10)},
+		{"head > ReplayFromBlock, no initr fromBlock", cltest.Head(14), nil, big.NewInt(15)},
+		{"head < ReplayFromBlock, initr fromBlock > ReplayFromBlock", cltest.Head(5), utils.NewBig(big.NewInt(12)), big.NewInt(12)},
+		{"head < ReplayFromBlock, initr fromBlock < ReplayFromBlock", cltest.Head(5), utils.NewBig(big.NewInt(8)), big.NewInt(10)},
+		{"head > ReplayFromBlock, initr fromBlock > ReplayFromBlock", cltest.Head(14), utils.NewBig(big.NewInt(12)), big.NewInt(15)},
+		{"head > ReplayFromBlock, initr fromBlock < ReplayFromBlock", cltest.Head(14), utils.NewBig(big.NewInt(8)), big.NewInt(15)},
 	}
 
 	for _, test := range cases {
@@ -382,8 +383,6 @@ func TestServices_NewInitiatorSubscription_EthLog_ReplayFromBlock(t *testing.T) 
 			ethClient := new(mocks.Client)
 			defer ethClient.AssertExpectations(t)
 			store.EthClient = ethClient
-
-			currentHead := cltest.Head(test.currentHead)
 
 			store.Config.Set(orm.EnvVarName("ReplayFromBlock"), 10)
 
@@ -415,7 +414,7 @@ func TestServices_NewInitiatorSubscription_EthLog_ReplayFromBlock(t *testing.T) 
 					executeJobChannel <- struct{}{}
 				})
 
-			_, err := services.StartJobSubscription(job, currentHead, store, runManager)
+			_, err := services.StartJobSubscription(job, test.currentHead, store, runManager)
 			require.NoError(t, err)
 
 			<-executeJobChannel
