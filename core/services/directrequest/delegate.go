@@ -94,7 +94,6 @@ var (
 type listener struct {
 	logBroadcaster    log.Broadcaster
 	headBroadcaster   *services.HeadBroadcaster
-	unsubscribeLogs   func()
 	oracle            oracle_wrapper.OracleInterface
 	pipelineRunner    pipeline.Runner
 	db                *gorm.DB
@@ -107,11 +106,12 @@ type listener struct {
 	chHeads           chan models.Head
 	minConfirmations  uint64
 	chStop            chan struct{}
+	utils.StartStopOnce
 }
 
 // Start complies with job.Service
 func (l *listener) Start() error {
-	connected, unsubscribe := l.logBroadcaster.Register(l, log.ListenerOpts{
+	connected, unsubscribeLogs := l.logBroadcaster.Register(l, log.ListenerOpts{
 		Contract: l.oracle,
 		Logs: []generated.AbigenLog{
 			oracle_wrapper.OracleOracleRequest{},
@@ -121,14 +121,15 @@ func (l *listener) Start() error {
 	if !connected {
 		return errors.New("Failed to register listener with logBroadcaster")
 	}
-	l.unsubscribeLogs = unsubscribe
 	go l.run()
 
 	hbUnsubscribe := l.headBroadcaster.Subscribe(l)
 
+	l.shutdownWaitGroup.Add(1)
 	go func() {
 		defer hbUnsubscribe()
-		//defer rs.wgDone.Done()
+		defer unsubscribeLogs()
+		defer l.shutdownWaitGroup.Done()
 		<-l.chStop
 	}()
 
@@ -137,8 +138,8 @@ func (l *listener) Start() error {
 
 // Close complies with job.Service
 func (l *listener) Close() error {
-	if l.unsubscribeLogs != nil {
-		l.unsubscribeLogs()
+	if !l.OkayToStop() {
+		return errors.New("RegistrySynchronizer is already stopped")
 	}
 	l.runs.Range(func(key, runCloserChannelIf interface{}) bool {
 		runCloserChannel, _ := runCloserChannelIf.(chan struct{})
@@ -146,13 +147,10 @@ func (l *listener) Close() error {
 		return true
 	})
 	l.runs = sync.Map{}
-	l.shutdownWaitGroup.Wait()
 
-	//if !rs.OkayToStop() {
-	//	return errors.New("RegistrySynchronizer is already stopped")
-	//}
 	close(l.chStop)
-	//rs.wgDone.Wait()
+	l.mbLogs.RetrieveLatestAndClear()
+	l.shutdownWaitGroup.Wait()
 
 	return nil
 }
