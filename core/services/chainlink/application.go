@@ -175,7 +175,7 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 	// Init service loggers
 	globalLogger := config.CreateProductionLogger()
 	globalLogger.SetDB(store.DB)
-	serviceLogLevels, err := getServiceLogLevels(globalLogger)
+	serviceLogLevels, err := globalLogger.GetServiceLogLevels()
 	if err != nil {
 		logger.Fatalf("error getting log levels: %v", err)
 	}
@@ -328,30 +328,7 @@ func (app *ChainlinkApplication) SetServiceLogger(ctx context.Context, serviceNa
 		}
 	}
 
-	return app.Store.DB.WithContext(ctx).Where(logger.LogConfig{ServiceName: serviceName}).
-		Assign(logger.LogConfig{ServiceName: serviceName, LogLevel: level.String()}).
-		FirstOrCreate(&logger.LogConfig{ServiceName: serviceName, LogLevel: level.String()}).Error
-}
-
-// getServiceLogLevels retrieves all service log levels from the db
-func getServiceLogLevels(globalLogger *logger.Logger) (map[string]string, error) {
-	serviceLogLevels := make(map[string]string)
-
-	headTracker, err := globalLogger.ServiceLogLevel(logger.HeadTracker)
-	if err != nil {
-		logger.Fatalf("error getting service log levels: %v", err)
-	}
-
-	serviceLogLevels[logger.HeadTracker] = headTracker
-
-	fluxMonitor, err := globalLogger.ServiceLogLevel(logger.FluxMonitor)
-	if err != nil {
-		logger.Fatalf("error getting service log levels: %v", err)
-	}
-
-	serviceLogLevels[logger.FluxMonitor] = fluxMonitor
-
-	return serviceLogLevels, nil
+	return app.Logger.Orm.SetServiceLogLevel(ctx, serviceName, level)
 }
 
 func setupConfig(config *orm.Config, store *strpkg.Store) {

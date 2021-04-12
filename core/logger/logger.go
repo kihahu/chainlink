@@ -18,7 +18,7 @@ import (
 // It implements uber/zap's SugaredLogger interface and adds conditional logging helpers.
 type Logger struct {
 	*zap.SugaredLogger
-	orm         ORM
+	Orm         ORM
 	dir         string
 	jsonConsole bool
 	toDisk      bool
@@ -79,7 +79,28 @@ func (l *Logger) PanicIf(err error) {
 }
 
 func (l *Logger) SetDB(db *gorm.DB) {
-	l.orm = NewORM(db)
+	l.Orm = NewORM(db)
+}
+
+// GetServiceLogLevels retrieves all service log levels from the db
+func (l *Logger) GetServiceLogLevels() (map[string]string, error) {
+	serviceLogLevels := make(map[string]string)
+
+	headTracker, err := l.ServiceLogLevel(HeadTracker)
+	if err != nil {
+		Fatalf("error getting service log levels: %v", err)
+	}
+
+	serviceLogLevels[HeadTracker] = headTracker
+
+	fluxMonitor, err := l.ServiceLogLevel(FluxMonitor)
+	if err != nil {
+		Fatalf("error getting service log levels: %v", err)
+	}
+
+	serviceLogLevels[FluxMonitor] = fluxMonitor
+
+	return serviceLogLevels, nil
 }
 
 // CreateLogger dwisott
@@ -146,8 +167,8 @@ func (l *Logger) InitServiceLevelLogger(serviceName string, logLevel string) (*L
 
 // ServiceLogLevel is the log level set for a specified package
 func (l *Logger) ServiceLogLevel(serviceName string) (string, error) {
-	if l.orm != nil {
-		level, err := l.orm.GetServiceLogLevel(serviceName)
+	if l.Orm != nil {
+		level, err := l.Orm.GetServiceLogLevel(serviceName)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			Warnf("Error while trying to fetch %s service log level: %v", serviceName, err)
 		} else if err == nil {
