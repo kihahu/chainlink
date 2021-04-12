@@ -83,6 +83,8 @@ func startNewApplication(t *testing.T, setup ...func(opts *startOptions)) *cltes
 		app, cleanup = cltest.NewApplicationWithConfig(t, config, sopts.FlagsAndDeps...)
 	}
 	t.Cleanup(cleanup)
+	app.Logger = app.Config.CreateProductionLogger()
+	app.Logger.SetDB(app.GetStore().DB)
 
 	if sopts.StartAndConnect {
 		require.NoError(t, app.StartAndConnect())
