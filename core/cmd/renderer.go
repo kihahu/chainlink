@@ -122,7 +122,7 @@ func (rt RendererTable) renderLogPkgConfig(serviceLevelLog webpresenters.Service
 	}
 
 	render("ServiceLogConfig", table)
-  return nil
+	return nil
 }
 
 func (rt RendererTable) renderVRFKeys(keys []VRFKeyPresenter) error {
