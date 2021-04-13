@@ -383,7 +383,7 @@ func TestFluxMonitor_PollIfEligible(t *testing.T) {
 							"latestAnswer": float64(10),
 							"updatedAt":    float64(100),
 						},
-					}, defaultLogger).
+					}, defaultLogger, false).
 					Return(int64(1), pipeline.FinalResult{
 						Values: []interface{}{decimal.NewFromInt(answers.polledAnswer)},
 						Errors: []error{nil},
