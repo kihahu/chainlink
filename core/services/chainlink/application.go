@@ -316,16 +316,17 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 
 // SetServiceLogger sets the Logger for a given service and stores the setting in the db
 func (app *ChainlinkApplication) SetServiceLogger(ctx context.Context, serviceName string, level zapcore.Level) error {
+	newL, err := app.logger.InitServiceLevelLogger(serviceName, level.String())
+	if err != nil {
+		return err
+	}
 
 	// TODO: Implement other service loggers
 	switch serviceName {
 	case logger.HeadTracker:
-		newL, err := app.logger.InitServiceLevelLogger(serviceName, level.String())
 		app.HeadTracker.SetLogger(newL)
-
-		if err != nil {
-			return err
-		}
+	case logger.FluxMonitor:
+		app.FluxMonitor.SetLogger(newL)
 	default:
 		return fmt.Errorf("no service found with name: %s", serviceName)
 	}
