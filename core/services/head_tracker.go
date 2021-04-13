@@ -413,6 +413,7 @@ func (ht *HeadTracker) subscribe() bool {
 	for {
 		if err := ht.unsubscribeFromHead(); err != nil {
 			ht.logger.Error("failed when unsubscribe from head", err)
+			return false
 		}
 
 		ht.logger.Info("HeadTracker: Connecting to ethereum node ", ht.store.Config.EthereumURL(), " in ", ht.sleeper.Duration())

@@ -117,10 +117,8 @@ func CreateLoggerWithConfig(zl *zap.SugaredLogger, dir string, jsonConsole bool,
 	}
 }
 
-// CreateProductionLogger returns a log config for the passed directory
-// with the given LogLevel and customizes stdout for pretty printing.
-func CreateProductionLogger(
-	dir string, jsonConsole bool, lvl zapcore.Level, toDisk bool) *Logger {
+// initLogConfig builds a zap.Config for a logger
+func initLogConfig(dir string, jsonConsole bool, lvl zapcore.Level, toDisk bool) zap.Config {
 	config := zap.NewProductionConfig()
 	if !jsonConsole {
 		config.OutputPaths = []string{"pretty://console"}
@@ -132,30 +130,30 @@ func CreateProductionLogger(
 	}
 	config.Level.SetLevel(lvl)
 
-	zl, err := config.Build(zap.AddCallerSkip(1))
+	return config
+}
 
+// CreateProductionLogger returns a log config for the passed directory
+// with the given LogLevel and customizes stdout for pretty printing.
+func CreateProductionLogger(
+	dir string, jsonConsole bool, lvl zapcore.Level, toDisk bool) *Logger {
+	config := initLogConfig(dir, jsonConsole, lvl, toDisk)
+
+	zl, err := config.Build(zap.AddCallerSkip(1))
 	if err != nil {
 		log.Fatal(err)
 	}
 	return CreateLoggerWithConfig(zl.Sugar(), dir, jsonConsole, toDisk)
 }
 
+// InitServiceLevelLogger builds a service level logger with a given logging level & serviceName
 func (l *Logger) InitServiceLevelLogger(serviceName string, logLevel string) (*Logger, error) {
-	config := zap.NewProductionConfig()
-	if !l.jsonConsole {
-		config.OutputPaths = []string{"pretty://console"}
-	}
-	if l.toDisk {
-		destination := logFileURI(l.dir)
-		config.OutputPaths = append(config.OutputPaths, destination)
-		config.ErrorOutputPaths = append(config.ErrorOutputPaths, destination)
-	}
-
 	var ll zapcore.Level
 	if err := ll.UnmarshalText([]byte(logLevel)); err != nil {
 		return nil, err
 	}
-	config.Level.SetLevel(ll)
+
+	config := initLogConfig(l.dir, l.jsonConsole, ll, l.toDisk)
 
 	zl, err := config.Build(zap.AddCallerSkip(1))
 	if err != nil {

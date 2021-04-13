@@ -122,7 +122,7 @@ type ChainlinkApplication struct {
 	balanceMonitor           services.BalanceMonitor
 	explorerClient           synchronization.ExplorerClient
 	subservices              []StartCloser
-	Logger                   *logger.Logger
+	logger                   *logger.Logger
 
 	started     bool
 	startStopMu sync.Mutex
@@ -287,7 +287,7 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 		shutdownSignal:           shutdownSignal,
 		balanceMonitor:           balanceMonitor,
 		explorerClient:           explorerClient,
-		Logger:                   globalLogger,
+		logger:                   globalLogger,
 		// NOTE: Can keep things clean by putting more things in subservices
 		// instead of manually start/closing
 		subservices: subservices,
@@ -317,18 +317,20 @@ func NewApplication(config *orm.Config, ethClient eth.Client, advisoryLocker pos
 // SetServiceLogger sets the Logger for a given service and stores the setting in the db
 func (app *ChainlinkApplication) SetServiceLogger(ctx context.Context, serviceName string, level zapcore.Level) error {
 
-	//TODO: Implement other service loggers
+	// TODO: Implement other service loggers
 	switch serviceName {
 	case logger.HeadTracker:
-		newL, err := app.Logger.InitServiceLevelLogger(serviceName, level.String())
+		newL, err := app.logger.InitServiceLevelLogger(serviceName, level.String())
 		app.HeadTracker.SetLogger(newL)
 
 		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("no service found with name: %s", serviceName)
 	}
 
-	return app.Logger.Orm.SetServiceLogLevel(ctx, serviceName, level)
+	return app.logger.Orm.SetServiceLogLevel(ctx, serviceName, level)
 }
 
 func setupConfig(config *orm.Config, store *strpkg.Store) {
@@ -504,7 +506,7 @@ func (app *ChainlinkApplication) GetStore() *strpkg.Store {
 }
 
 func (app *ChainlinkApplication) GetLogger() *logger.Logger {
-	return app.Logger
+	return app.logger
 }
 
 func (app *ChainlinkApplication) GetJobORM() job.ORM {
