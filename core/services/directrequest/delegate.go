@@ -21,19 +21,27 @@ import (
 	"gorm.io/gorm"
 )
 
-type Delegate struct {
-	logBroadcaster                   log.Broadcaster
-	headBroadcaster                  *services.HeadBroadcaster
-	pipelineRunner                   pipeline.Runner
-	pipelineORM                      pipeline.ORM
-	db                               *gorm.DB
-	ethClient                        eth.Client
-	chHeads                          chan models.Head
-	minRequiredOutgoingConfirmations uint64
-}
+type (
+	Delegate struct {
+		logBroadcaster  log.Broadcaster
+		headBroadcaster *services.HeadBroadcaster
+		pipelineRunner  pipeline.Runner
+		pipelineORM     pipeline.ORM
+		db              *gorm.DB
+		ethClient       eth.Client
+		chHeads         chan models.Head
+		config          Config
+	}
 
-func NewDelegate(logBroadcaster log.Broadcaster, headBroadcaster *services.HeadBroadcaster, pipelineRunner pipeline.Runner, pipelineORM pipeline.ORM,
-	ethClient eth.Client, db *gorm.DB, minRequiredOutgoingConfirmations uint64) *Delegate {
+	Config interface {
+		MinRequiredOutgoingConfirmations() uint64
+		MailboxCapacity() uint64
+	}
+)
+
+func NewDelegate(logBroadcaster log.Broadcaster, headBroadcaster *services.HeadBroadcaster,
+	pipelineRunner pipeline.Runner, pipelineORM pipeline.ORM,
+	ethClient eth.Client, db *gorm.DB, config Config) *Delegate {
 	return &Delegate{
 		logBroadcaster,
 		headBroadcaster,
@@ -42,7 +50,7 @@ func NewDelegate(logBroadcaster log.Broadcaster, headBroadcaster *services.HeadB
 		db,
 		ethClient,
 		make(chan models.Head, 1),
-		minRequiredOutgoingConfirmations,
+		config,
 	}
 }
 
@@ -62,7 +70,7 @@ func (d *Delegate) ServicesForSpec(spec job.Job) (services []job.Service, err er
 		return
 	}
 
-	minConfirmations := d.minRequiredOutgoingConfirmations
+	minConfirmations := d.config.MinRequiredOutgoingConfirmations()
 	if concreteSpec.NumConfirmations > minConfirmations {
 		minConfirmations = concreteSpec.NumConfirmations
 	}
@@ -75,7 +83,7 @@ func (d *Delegate) ServicesForSpec(spec job.Job) (services []job.Service, err er
 		db:               d.db,
 		pipelineORM:      d.pipelineORM,
 		spec:             *spec.PipelineSpec,
-		mbLogs:           utils.NewMailbox(50),
+		mbLogs:           utils.NewMailbox(d.config.MailboxCapacity()),
 		chHeads:          d.chHeads,
 		minConfirmations: minConfirmations,
 		chStop:           make(chan struct{}),
@@ -111,48 +119,49 @@ type listener struct {
 
 // Start complies with job.Service
 func (l *listener) Start() error {
-	connected, unsubscribeLogs := l.logBroadcaster.Register(l, log.ListenerOpts{
-		Contract: l.oracle,
-		Logs: []generated.AbigenLog{
-			oracle_wrapper.OracleOracleRequest{},
-			oracle_wrapper.OracleCancelOracleRequest{},
-		},
+	return l.StartOnce("DirectRequestListener", func() error {
+		connected, unsubscribeLogs := l.logBroadcaster.Register(l, log.ListenerOpts{
+			Contract: l.oracle,
+			Logs: []generated.AbigenLog{
+				oracle_wrapper.OracleOracleRequest{},
+				oracle_wrapper.OracleCancelOracleRequest{},
+			},
+		})
+		if !connected {
+			return errors.New("Failed to register listener with logBroadcaster")
+		}
+		go l.run()
+
+		unsubscribeHeads := l.headBroadcaster.Subscribe(l)
+
+		l.shutdownWaitGroup.Add(1)
+		go func() {
+			<-l.chStop
+			unsubscribeHeads()
+			unsubscribeLogs()
+			l.shutdownWaitGroup.Done()
+		}()
+
+		return nil
 	})
-	if !connected {
-		return errors.New("Failed to register listener with logBroadcaster")
-	}
-	go l.run()
-
-	hbUnsubscribe := l.headBroadcaster.Subscribe(l)
-
-	l.shutdownWaitGroup.Add(1)
-	go func() {
-		defer hbUnsubscribe()
-		defer unsubscribeLogs()
-		defer l.shutdownWaitGroup.Done()
-		<-l.chStop
-	}()
-
-	return nil
 }
 
 // Close complies with job.Service
 func (l *listener) Close() error {
-	if !l.OkayToStop() {
-		return errors.New("RegistrySynchronizer is already stopped")
-	}
-	l.runs.Range(func(key, runCloserChannelIf interface{}) bool {
-		runCloserChannel, _ := runCloserChannelIf.(chan struct{})
-		close(runCloserChannel)
-		return true
+	return l.StopOnce("DirectRequestListener", func() error {
+		l.runs.Range(func(key, runCloserChannelIf interface{}) bool {
+			runCloserChannel, _ := runCloserChannelIf.(chan struct{})
+			close(runCloserChannel)
+			return true
+		})
+		l.runs = sync.Map{}
+
+		close(l.chStop)
+		//l.mbLogs.RetrieveLatestAndClear()
+		l.shutdownWaitGroup.Wait()
+
+		return nil
 	})
-	l.runs = sync.Map{}
-
-	close(l.chStop)
-	l.mbLogs.RetrieveLatestAndClear()
-	l.shutdownWaitGroup.Wait()
-
-	return nil
 }
 
 // OnConnect complies with log.Listener
@@ -169,13 +178,18 @@ func (l *listener) OnNewLongestChain(ctx context.Context, head models.Head) {
 }
 
 func (l *listener) HandleLog(lb log.Broadcast) {
-	l.mbLogs.Deliver(lb)
+	wasOverCapacity := l.mbLogs.Deliver(lb)
+	if wasOverCapacity {
+		logger.Error("DirectRequestListener: log mailbox is over capacity - dropped the oldest log")
+	}
 }
 
 func (l *listener) run() {
+	l.shutdownWaitGroup.Add(1)
 	for {
 		select {
 		case <-l.chStop:
+			l.shutdownWaitGroup.Done()
 			return
 		case head := <-l.chHeads:
 			l.handleReceivedLogs(head)
@@ -192,7 +206,7 @@ func (l *listener) handleReceivedLogs(head models.Head) {
 		}
 		lb, ok := i.(log.Broadcast)
 		if !ok {
-			logger.Errorf("RegistrySynchronizer: invariant violation, expected log.Broadcast but got %T", lb)
+			panic(errors.Errorf("DirectRequestListener: invariant violation, expected log.Broadcast but got %T", lb))
 			continue
 		}
 		was, err := lb.WasAlreadyConsumed()
@@ -205,13 +219,13 @@ func (l *listener) handleReceivedLogs(head models.Head) {
 
 		logJobSpecID := lb.RawLog().Topics[1]
 		if logJobSpecID == (common.Hash{}) || logJobSpecID != l.onChainJobSpecID {
-			logger.Debugw("Skipping Run for Log with wrong Job ID", "logJobSpecID", logJobSpecID, "actualJobID", l.onChainJobSpecID)
+			logger.Debugw("DirectRequestListener: Skipping Run for Log with wrong Job ID", "logJobSpecID", logJobSpecID, "actualJobID", l.onChainJobSpecID)
 			return
 		}
 
 		log := lb.DecodedLog()
 		if log == nil || reflect.ValueOf(log).IsNil() {
-			logger.Error("HandleLog: ignoring nil value")
+			logger.Error("DirectRequestListener: HandleLog: ignoring nil value")
 			return
 		}
 
@@ -239,7 +253,7 @@ func isOldEnoughConstructor(head models.Head, minConfirmations uint64) func(inte
 	return func(i interface{}) bool {
 		broadcast, ok := i.(log.Broadcast)
 		if !ok {
-			return true // we want to get bad data out of the queue
+			panic(errors.Errorf("DirectRequestListener: Invalid type received - expected Broadcast, got %T", i))
 		}
 		logHeight := broadcast.RawLog().BlockNumber
 		return (logHeight + uint64(minConfirmations) - 1) <= uint64(head.Number)
